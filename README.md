@@ -1,36 +1,51 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Pastebin Lite
+
+A minimal Pastebin-like application built with Next.js (App Router), TypeScript, and Vercel KV.
+
+## Features
+
+- **Health Check API**: Verify system and Redis connectivity.
+- **Create Paste**: Create pastes with optional TTL and maximum view limits.
+- **Fetch Paste**: Atomic view counting and automatic expiration.
+- **Safe Rendering**: View pastes safely without script execution.
+- **Deterministic Testing**: Support for `TEST_MODE` with custom timestamps via headers.
 
 ## Getting Started
 
-First, run the development server:
+### Local Development
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+1. **Clone the repository**
+2. **Install dependencies**:
+   ```bash
+   npm install
+   ```
+3. **Setup Environment Variables**:
+   Create a `.env.local` file with your Vercel KV credentials:
+   ```env
+   KV_URL=...
+   KV_REST_API_URL=...
+   KV_REST_API_TOKEN=...
+   KV_REST_API_READ_ONLY_TOKEN=...
+   ```
+4. **Run the development server**:
+   ```bash
+   npm run dev
+   ```
+5. **Open [http://localhost:3000](http://localhost:3000)** in your browser.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Persistence Layer
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+This application uses **Vercel KV (Redis)** for all data persistence. 
+- **Atomic Operations**: Uses Lua scripts (`EVAL`) to ensure that view counts are decremented atomically and checked against expiration limits in a single operation.
+- **Data Structure**: Pastes are stored as Redis Hashes (`HSET`) with the following fields:
+  - `content`: The text content of the paste.
+  - `remaining_views`: Counter for view limits (-1 for unlimited).
+  - `expires_at`: ISO string for display.
+  - `expires_at_ms`: Unix timestamp in milliseconds for efficient TTL comparison.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Design Decisions
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Serverless Safe**: The implementation avoids global mutable state and uses atomic Redis operations to handle concurrent requests in a serverless environment.
+- **Deterministic Time**: For testing purposes, the application can use a provided timestamp from the `x-test-now-ms` header when `TEST_MODE=1` is set, allowing for reliable testing of expiration logic.
+- **Nanoid**: Uses `nanoid` to generate short, URL-friendly IDs for pastes.
+- **App Router**: Leverages Next.js App Router for both API routes and Server Components.
